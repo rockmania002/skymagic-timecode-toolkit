@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyMagic Timecode Calculator Toolkit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #070807;
+    --panel: #0c0d0c;
+    --panel-2: #101110;
+    --border: #1d211d;
+    --text: #f0f3ef;
+    --muted: #8a938a;
+    --accent: #3ddc6e;
+    --accent-bright: #5be88a;
+    --red: #ef4444;
+    --green: #22c55e;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --pilot: #60a5fa;
+    --caller: #ff8c1a;
+  }
+  html {
+    height: 100%;
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(61,220,110,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(61,220,110,0.045) 1px, transparent 1px);
+    background-size: 54px 54px;
+  }
+  body {
+    min-height: 100%;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: transparent; color: var(--text);
+    padding: 10px; font-size: 14px;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(61,220,110,0.07), transparent 70%);
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px; padding: 0 2px;
+  }
+  .show-name {
+    background: transparent; border: none; color: var(--text);
+    font-size: 15px; font-weight: 600; outline: none;
+    flex: 1; min-width: 0; padding: 4px 0;
+  }
+  .show-name:focus { border-bottom: 1px solid var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .dot.syncing { background: var(--yellow); animation: pulse 1s infinite; }
+  .dot.error { background: var(--red); }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .user-tag {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; color: var(--text); outline: none; font-size: 11px; width: 84px;
+  }
+
+  .page-title { font-family: 'Chakra Petch', sans-serif; font-size: 21px; font-weight: 700; margin-bottom: 4px; }
+  .clock-warn {
+    background: rgba(251,191,36,0.14); border: 1px solid var(--yellow);
+    color: var(--yellow); border-radius: 8px; padding: 9px 12px;
+    font-size: 11.5px; font-weight: 600; line-height: 1.45; margin-bottom: 10px;
+  }
+  .page-desc { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .modesel {
+    display: flex; gap: 4px; margin-bottom: 7px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 11px; padding: 4px;
+  }
+  .modesel-opt {
+    flex: 1; padding: 11px 6px; font-size: 12.5px; font-weight: 700;
+    background: transparent; border: none; border-radius: 8px;
+    color: var(--muted); cursor: pointer; letter-spacing: .2px;
+  }
+  .modesel-opt.active { background: var(--accent); color: #0a0c10; }
+  .modesel-hint { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.55; }
+  .manual-readout {
+    font-size: 13.5px; color: var(--text); line-height: 1.6;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 13px 14px;
+  }
+  .manual-readout b { color: var(--accent); }
+  .lock-notice {
+    display: none; align-items: center; gap: 8px; margin-bottom: 14px;
+    background: rgba(61,220,110,0.10);
+    border: 1px solid rgba(61,220,110,0.34);
+    border-radius: 9px; padding: 11px 13px;
+    font-size: 12.5px; color: var(--accent); font-weight: 600; line-height: 1.5;
+  }
+  .var-input:disabled, input:disabled { cursor: not-allowed; opacity: 0.5; }
+  .modesel-opt:disabled { cursor: not-allowed; opacity: 0.7; }
+  input[type=checkbox]:disabled { opacity: 0.5; }
+
+  .mode-toggle {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); cursor: pointer;
+    padding: 11px; font-size: 11px; font-weight: 700; margin: 10px 0;
+    text-transform: uppercase; letter-spacing: 0.7px;
+  }
+  .mode-toggle:hover, .mode-toggle:active { background: var(--border); }
+  body.show-mode .modesel,
+  body.show-mode .modesel-hint,
+  body.show-mode #setupLock,
+  body.show-mode .page-title,
+  body.show-mode .page-desc,
+  body.show-mode .card.role-caller,
+  body.show-mode .card.role-pilot,
+  body.show-mode details { display: none; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .card.role-caller { border-left: 3px solid var(--caller); }
+  .card.role-pilot { border-left: 3px solid var(--pilot); }
+  .card-title {
+    font-size: 11px; letter-spacing: 0.8px;
+    text-transform: uppercase; font-weight: 700; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card.role-caller .card-title { color: var(--caller); }
+  .card.role-pilot .card-title { color: var(--pilot); }
+  .card-sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+
+  .var-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .var { display: flex; flex-direction: column; gap: 6px; }
+  .var label { font-size: 11px; color: var(--text); font-weight: 600; }
+  .var-input-wrap {
+    display: flex; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .var-input-wrap:focus-within { border-color: var(--accent); }
+  .var-input {
+    flex: 1; background: transparent; border: none; color: var(--accent);
+    padding: 10px 12px; font-size: 17px; font-weight: 700;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    outline: none; width: 100%; text-align: center;
+  }
+  .var-suffix {
+    padding: 10px 12px; font-size: 12px; color: var(--muted);
+    background: rgba(0,0,0,0.2); display: flex; align-items: center;
+  }
+  .var-hint { font-size: 10px; color: var(--muted); font-style: italic; }
+  .var-input-wrap.locked { background: var(--panel); }
+  .var-input.locked-value { color: var(--muted); cursor: default; }
+  .big-input .var-input { font-size: 24px; }
+
+  /* ===== Live Console ===== */
+  .timeline-card {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    transition: border-color 0.3s;
+  }
+  .timeline-card.phase-pre { border-color: var(--red); }
+  .timeline-card.phase-sc, .timeline-card.phase-gcs { border-color: var(--yellow); }
+  .timeline-card.phase-flight { border-color: var(--green); }
+  .timeline-card.phase-show { border-color: var(--blue); }
+  .timeline-card.phase-preroll { border-color: var(--purple); }
+  .timeline-card.phase-complete { border-color: var(--green); }
+
+  .console {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    grid-template-areas: "left timer right";
+    gap: 1px;
+    background: var(--border);
+  }
+  .console-left, .console-center, .console-right {
+    background: var(--panel);
+    padding: 15px 14px;
+  }
+  .console-left { grid-area: left; }
+  .console-center {
+    grid-area: timer;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .console-right { grid-area: right; }
+
+  .panel-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-bottom: 7px;
+  }
+
+  .timer-clock {
+    font-size: 62px; font-weight: 700; line-height: 1; letter-spacing: -1.5px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; color: var(--text);
+  }
+  .timer-clock.idle { color: var(--muted); }
+  .clock-ms { font-size: 0.42em; color: var(--muted); font-weight: 600; }
+  .timer-caption {
+    margin-top: 8px; font-size: 9.5px; letter-spacing: 1.5px;
+    text-transform: uppercase; font-weight: 700; color: var(--muted);
+  }
+
+  .phase-big {
+    font-size: 16px; font-weight: 800; line-height: 1.15;
+    text-transform: uppercase; letter-spacing: 0.3px; color: var(--muted);
+  }
+  .timeline-card.phase-pre .phase-big { color: var(--red); }
+  .timeline-card.phase-sc .phase-big, .timeline-card.phase-gcs .phase-big { color: var(--yellow); }
+  .timeline-card.phase-flight .phase-big { color: var(--green); }
+  .timeline-card.phase-show .phase-big { color: var(--blue); }
+  .timeline-card.phase-preroll .phase-big { color: var(--purple); }
+  .timeline-card.phase-complete .phase-big { color: var(--green); }
+
+  .comingup { display: flex; flex-direction: column; gap: 8px; }
+  .cu-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; margin-top: 15px; margin-bottom: 7px;
+  }
+  .cu-head .panel-label { margin: 0; }
+  .cu-gaptog {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase;
+    font-weight: 700; color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .cu-gaptog input {
+    width: 13px; height: 13px; margin: 0;
+    accent-color: var(--accent); cursor: pointer; flex-shrink: 0;
+  }
+  .cu-item { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+  .cu-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .cu-name {
+    flex: 1; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cu-tc {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: var(--accent); font-weight: 700; font-size: 11px; flex-shrink: 0;
+  }
+  .cu-item.current {
+    border-radius: 7px; padding: 7px 8px; margin: 0 -8px;
+    border: 1px solid var(--border); background: var(--panel-2);
+  }
+  .cu-item.current .cu-name { font-weight: 800; color: #fff; }
+  .timeline-card.phase-pre .cu-item.current { border-color: var(--red); background: rgba(239,68,68,0.14); }
+  .timeline-card.phase-sc .cu-item.current, .timeline-card.phase-gcs .cu-item.current { border-color: var(--yellow); background: rgba(251,191,36,0.14); }
+  .timeline-card.phase-flight .cu-item.current { border-color: var(--green); background: rgba(34,197,94,0.14); }
+  .timeline-card.phase-show .cu-item.current { border-color: var(--blue); background: rgba(96,165,250,0.14); }
+  .timeline-card.phase-complete .cu-item.current { border-color: var(--green); background: rgba(34,197,94,0.14); }
+  .cu-empty { font-size: 11px; color: var(--muted); font-style: italic; }
+  .cu-gap {
+    display: flex; align-items: center; gap: 8px;
+    margin: -3px 0; padding-left: 2px;
+    font-size: 10px; color: var(--muted); font-weight: 600;
+  }
+  .cu-gap-line { width: 2px; height: 12px; border-radius: 1px; background: var(--border); flex-shrink: 0; }
+
+  .say-now {
+    font-size: 25px; font-weight: 800; line-height: 1.12;
+    padding: 14px 8px; text-align: center; color: var(--muted);
+    background: var(--panel-2); border: 1.5px solid var(--border);
+    border-radius: 10px; min-height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    word-break: break-word;
+  }
+  .timeline-card.phase-pre .say-now { border-color: var(--red); color: #fff; background: rgba(239,68,68,0.13); }
+  .timeline-card.phase-sc .say-now, .timeline-card.phase-gcs .say-now { border-color: var(--yellow); color: #fff; background: rgba(251,191,36,0.13); }
+  .timeline-card.phase-flight .say-now { border-color: var(--green); color: #fff; background: rgba(34,197,94,0.13); }
+  .timeline-card.phase-show .say-now { border-color: var(--blue); color: #fff; background: rgba(96,165,250,0.13); }
+  .timeline-card.phase-complete .say-now { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.13); }
+
+  .standby { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; }
+  .standby .sb-name { font-weight: 800; font-size: 18px; }
+  .standby .sb-time {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    color: var(--accent); font-weight: 700; font-size: 16px;
+  }
+  .standby.imminent .sb-name, .standby.imminent .sb-time { color: var(--yellow); }
+
+  .controls {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    padding: 14px 16px; border-top: 1px solid var(--border);
+  }
+  .ctrl {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); cursor: pointer;
+    padding: 12px 22px; font-size: 15px; font-weight: 600; min-width: 100px;
+  }
+  .ctrl:hover, .ctrl:active { background: var(--border); }
+  .ctrl.primary { background: var(--accent); color: #000; border-color: var(--accent); }
+  .ctrl.primary:hover { background: var(--accent-bright); }
+  .ctrl.danger { color: var(--red); }
+  .ctrl.icon { padding: 12px 16px; min-width: 0; }
+  .ctrl.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .ctrl:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ctrl:disabled:hover { background: var(--panel-2); }
+  .timer-lock {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 10px;
+    background: rgba(61,220,110,0.10);
+    border: 1px solid rgba(61,220,110,0.34);
+    border-radius: 9px; padding: 9px 12px;
+    font-size: 12.5px; color: var(--accent); font-weight: 600;
+  }
+  .lock-takeover {
+    flex: none; padding: 7px 13px; font-size: 11.5px; font-weight: 700;
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); cursor: pointer;
+  }
+  .lock-takeover.armed { background: var(--red); color: #fff; border-color: var(--red); }
+
+  details {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; margin-top: 8px; overflow: hidden;
+  }
+  summary {
+    padding: 12px 16px; cursor: pointer; list-style: none;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); font-weight: 700;
+    display: flex; align-items: center; justify-content: space-between;
+    user-select: none;
+  }
+  summary > span::before { content: '// '; color: var(--accent); }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '▾'; font-size: 12px; transition: transform 0.2s; }
+  details[open] summary::after { transform: rotate(180deg); }
+  .details-body { padding: 4px 16px 16px; }
+  .badge {
+    background: var(--accent); color: #000;
+    font-size: 10px; padding: 2px 6px; border-radius: 10px;
+    font-weight: 700; margin-left: 6px;
+  }
+  .toggle-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted); cursor: pointer;
+    margin-bottom: 12px;
+  }
+  .small-link {
+    font-size: 11px; color: var(--accent); cursor: pointer;
+    background: transparent; border: none; padding: 2px 0;
+    text-decoration: underline;
+  }
+
+  .custom-row {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .custom-row:last-child { border-bottom: none; }
+  .cc-line1 { display: flex; gap: 6px; align-items: center; }
+  .cc-line2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .cc-line1 input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; color: var(--text);
+    font-size: 13px; outline: none; width: 100%;
+  }
+  .cc-offset {
+    width: 62px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px; color: var(--accent);
+    font-size: 13px; font-weight: 700; text-align: center; outline: none;
+  }
+  .cc-unit { font-size: 12px; color: var(--muted); }
+  .cc-sel {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px; color: var(--text);
+    font-size: 12px; outline: none;
+  }
+  .cc-line1 input:focus, .cc-offset:focus, .cc-sel:focus { border-color: var(--accent); }
+  .row-delete {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 14px; padding: 4px;
+  }
+  .row-delete:hover { color: var(--red); }
+
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); cursor: pointer;
+    padding: 8px 14px; font-size: 13px; font-weight: 500;
+  }
+  .btn:hover { background: var(--border); }
+  .btn.danger { color: var(--red); }
+
+  .footnote {
+    margin-top: 16px; font-size: 11px; color: var(--muted);
+    text-align: center; line-height: 1.5;
+  }
+
+  /* --- Home screen --- */
+  .home-title { font-size: 22px; font-weight: 700; margin: 6px 0 4px; }
+  .home-sub { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
+  #projectList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .proj-row {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    background: var(--panel); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 10px;
+    padding: 14px; cursor: pointer; text-align: left; color: var(--text);
+  }
+  .proj-row:hover, .proj-row:active { background: var(--panel-2); }
+  .proj-lock { font-size: 15px; }
+  .proj-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .proj-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proj-meta { font-size: 11px; color: var(--muted); }
+  .proj-go { color: var(--muted); font-size: 20px; }
+  .proj-empty {
+    color: var(--muted); font-size: 13px; text-align: center;
+    padding: 26px 16px; border: 1px dashed var(--border); border-radius: 10px; line-height: 1.5;
+  }
+  .newproj-btn {
+    width: 100%; background: var(--accent); color: #0a0c10; border: none;
+    border-radius: 10px; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .newproj-btn:active { opacity: 0.85; }
+  .back-btn {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); font-size: 12px; font-weight: 600;
+    padding: 6px 10px; cursor: pointer; white-space: nowrap;
+  }
+  .back-btn:hover { background: var(--border); }
+
+  /* --- Modals --- */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 100;
+  }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; width: 100%; max-width: 340px;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; }
+  .modal-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 4px; }
+  .modal-label {
+    display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--muted); font-weight: 700; margin: 14px 0 5px;
+  }
+  .modal-input {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 12px; color: var(--text); font-size: 15px; outline: none;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-input.pin {
+    text-align: center; font-size: 26px; letter-spacing: 10px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; padding-left: 22px;
+  }
+  .modal-err { color: var(--red); font-size: 12px; min-height: 15px; margin-top: 8px; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .modal-btns .btn { flex: 1; text-align: center; }
+  .btn.primary { background: var(--accent); color: #0a0c10; border-color: var(--accent); font-weight: 700; }
+  .info-line { font-size: 12px; color: var(--text); line-height: 1.5; margin-bottom: 10px; }
+  .info-sub { color: var(--muted); }
+  #projPinShow { font-family: 'IBM Plex Mono', ui-monospace, monospace; color: var(--accent); letter-spacing: 2px; }
+
+  /* --- Branding --- */
+  .brand { display: flex; align-items: center; gap: 13px; margin: 4px 0 14px; }
+  .brand-logo { height: 44px; width: auto; display: block; }
+  .brand-name { font-family: 'Chakra Petch', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: 2.5px; line-height: 1; text-transform: uppercase; }
+  .brand-tool { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase; margin-top: 4px; }
+  .page-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+  .page-logo { height: 21px; width: auto; opacity: 0.92; }
+
+  /* --- Presence --- */
+  .presence {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11.5px; color: var(--muted); line-height: 1.4;
+    padding: 7px 11px; margin-bottom: 10px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .presence b { color: var(--text); font-weight: 700; }
+  .pres-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    flex-shrink: 0; box-shadow: 0 0 5px var(--green);
+  }
+  .pres-dot.dim { background: var(--muted); box-shadow: none; }
+
+  @media (max-width: 600px) {
+    body { padding: 6px; }
+    .console {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas: "timer timer" "left right";
+    }
+    .console-center { padding: 16px 8px; }
+    .timer-clock { font-size: 52px; }
+    .say-now { font-size: 21px; min-height: 56px; }
+    .ctrl { padding: 12px 16px; min-width: 90px; font-size: 14px; }
+    .var-input { font-size: 15px; padding: 8px 10px; }
+    .big-input .var-input { font-size: 20px; }
+    .page-title { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== HOME SCREEN ===== -->
+  <div id="screenHome">
+    <div class="brand">
+      <img class="brand-logo" src="data:image/png;base64,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" alt="SkyMagic">
+      <div>
+        <div class="brand-name">SKYMAGIC</div>
+        <div class="brand-tool">Timecode Calculator Toolkit</div>
+      </div>
+    </div>
+    <p class="home-sub">Open a show to run its timer, or create a new one. Each show is locked with a PIN, so crews running different shows on the same link don't cross wires.</p>
+    <div id="projectList"></div>
+    <button class="newproj-btn" id="newProjectBtn">+ New Show</button>
+    <div class="footnote">Each show syncs live across every device that opens it with the right PIN.</div>
+  </div>
+
+  <!-- ===== SHOW SCREEN ===== -->
+  <div id="screenShow" style="display:none">
+
+  <header>
+    <button class="back-btn" id="backHome">‹ Shows</button>
+    <input class="show-name" id="showName" placeholder="Show name" value="Drone Show">
+    <div class="header-right">
+      <span class="dot" id="syncDot"></span>
+      <span id="syncText">Synced</span>
+      <input class="user-tag" id="userName" placeholder="Your name" maxlength="20">
+    </div>
+  </header>
+
+  <div class="presence" id="presenceBar"><span class="pres-dot dim"></span> Connecting…</div>
+
+  <div class="clock-warn" id="clockWarn" style="display:none"></div>
+
+  <div class="page-brand">
+    <img class="page-logo" src="data:image/png;base64,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" alt="">
+    <h2 class="page-title">Timecode Calculator</h2>
+  </div>
+  <p class="page-desc">
+    Show caller and pilot fill in their values. Press Start — the console shows the live clock, what to say now, and what's coming up next.
+  </p>
+
+  <div class="modesel">
+    <button class="modesel-opt" id="modeManual" data-mode="manual">🎙 Manual Trigger</button>
+    <button class="modesel-opt" id="modeTimecode" data-mode="timecode">⏱ Timecode Device</button>
+  </div>
+  <div class="modesel-hint" id="modeHint"></div>
+  <div class="lock-notice" id="setupLock">🔒 Timer is running — settings are locked. Reset the timer to make changes.</div>
+
+  <div class="card role-caller">
+    <div id="callerTimecode">
+      <div class="card-sub">The master timecode first light must hit.</div>
+      <div class="var big-input">
+        <label>First Light TC</label>
+        <div class="var-input-wrap">
+          <input class="var-input" id="c_firstLight" value="0:02:15" style="text-align:center">
+        </div>
+      </div>
+    </div>
+    <div id="callerManual">
+      <div class="card-sub">You call this show manually — no external timecode.</div>
+      <div class="manual-readout">First light comes on <b id="manualFL">—</b> after you press <b>Arm the Drones</b>.</div>
+    </div>
+  </div>
+
+  <div class="card role-pilot">
+    <div class="card-sub">Procedure durations for this show.</div>
+    <div class="var-grid">
+      <div class="var">
+        <label>Formation Start Timer</label>
+        <div class="var-input-wrap">
+          <input class="var-input" id="p_formationTimer" type="number" min="0" value="80">
+          <span class="var-suffix">sec</span>
+        </div>
+        <span class="var-hint">Formation Start Timer is first drone takeoff to Start of Show</span>
+      </div>
+      <div class="var">
+        <label>First Transition</label>
+        <div class="var-input-wrap">
+          <input class="var-input" id="p_firstTransition" type="number" min="0" value="20">
+          <span class="var-suffix">sec</span>
+        </div>
+        <span class="var-hint">First Transition is from Start of Show to First Light</span>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary><span>Pre-Takeoff Sequence (arm &amp; countdowns)</span></summary>
+    <div class="details-body">
+      <div class="var-grid">
+        <div class="var">
+          <label>Arm Duration</label>
+          <div class="var-input-wrap">
+            <input class="var-input" id="a_armHold" type="number" min="0" value="26">
+            <span class="var-suffix">sec</span>
+          </div>
+          <span class="var-hint">Arm the Drones → GO · includes countdown</span>
+        </div>
+        <div class="var">
+          <label>Arm Countdown</label>
+          <div class="var-input-wrap locked">
+            <div class="var-input locked-value">5</div>
+            <span class="var-suffix">sec</span>
+          </div>
+          <span class="var-hint">Final 5s of Arm Duration · fixed</span>
+        </div>
+        <div class="var">
+          <label>GCS Countdown</label>
+          <div class="var-input-wrap locked">
+            <div class="var-input locked-value">5</div>
+            <span class="var-suffix">sec</span>
+          </div>
+          <span class="var-hint">GO → Takeoff · fixed</span>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary><span>Extra Cues <span class="badge" id="customCount">0</span></span></summary>
+    <div class="details-body">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5">
+        Optional markers to track during the show (V/O start, music change, show end, etc.).
+      </p>
+      <div id="customList"></div>
+      <div class="actions">
+        <button class="btn" id="addCustom">+ Add Cue</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- Live console -->
+  <button class="mode-toggle" id="modeToggle">Hide setup — show timer only</button>
+  <div class="timeline-card" id="timelineCard">
+    <div class="console">
+      <div class="console-left">
+        <div class="panel-label">Current Phase</div>
+        <div class="phase-big" id="phaseBig">READY</div>
+        <div class="cu-head">
+          <span class="panel-label">Coming Up</span>
+          <label class="cu-gaptog"><input type="checkbox" id="showGaps" checked><span>Gaps</span></label>
+        </div>
+        <div class="comingup" id="comingUp"></div>
+      </div>
+      <div class="console-center">
+        <div class="timer-clock idle" id="elapsedDisplay"><span id="clockMain">0:00:00</span><span class="clock-ms" id="clockMs">.000</span></div>
+        <div class="timer-caption" id="timerCaption">show clock</div>
+      </div>
+      <div class="console-right">
+        <div class="panel-label">Now</div>
+        <div class="say-now" id="sayNow">—</div>
+        <div class="panel-label" style="margin-top:15px">Standby</div>
+        <div class="standby" id="standby">—</div>
+      </div>
+    </div>
+    <div class="timer-lock" id="timerLock" style="display:none">
+      <span id="timerLockMsg">🔒 Locked</span>
+      <button class="lock-takeover" id="btnTakeover">Take over</button>
+    </div>
+    <div class="controls">
+      <button class="ctrl primary" id="btnStart">▶ START</button>
+      <button class="ctrl danger" id="btnReset">↺ RESET</button>
+      <button class="ctrl icon" id="btnAudio" title="Toggle audio cues">🔇</button>
+    </div>
+  </div>
+
+  <details>
+    <summary><span>Show Info, Export &amp; Reset</span></summary>
+    <div class="details-body">
+      <div class="info-line">PIN for this show: <strong id="projPinShow">····</strong> <span class="info-sub">— share this with your crew so they can open it.</span></div>
+      <div class="actions">
+        <button class="btn" id="exportBtn">Copy JSON</button>
+        <button class="btn danger" id="resetAllBtn" style="margin-left:auto">Reset show values</button>
+      </div>
+      <div class="actions">
+        <button class="btn danger" id="deleteProjBtn" style="width:100%">Delete this show</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="footnote">
+    Anyone with this link and the PIN can open this show — values and timer sync live.
+  </div>
+
+  </div><!-- /screenShow -->
+</div><!-- /container -->
+
+<!-- ===== NEW SHOW MODAL ===== -->
+<div class="modal-bg" id="modalNewProj" style="display:none">
+  <div class="modal">
+    <div class="modal-title">New Show</div>
+    <div class="modal-desc">Give it a name and a 4-digit PIN. Anyone opening this show will need the PIN.</div>
+    <label class="modal-label">Show name</label>
+    <input class="modal-input" id="npName" placeholder="e.g. Marina Bay Countdown" maxlength="40">
+    <label class="modal-label">4-digit PIN</label>
+    <input class="modal-input pin" id="npPin" inputmode="numeric" maxlength="4" placeholder="••••">
+    <div class="modal-err" id="npErr"></div>
+    <div class="modal-btns">
+      <button class="btn" id="npCancel">Cancel</button>
+      <button class="btn primary" id="npCreate">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PIN MODAL ===== -->
+<div class="modal-bg" id="modalPin" style="display:none">
+  <div class="modal">
+    <div class="modal-title" id="pinTitle">Enter PIN</div>
+    <div class="modal-desc" id="pinDesc">Enter the 4-digit PIN to open this show.</div>
+    <input class="modal-input pin" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••" style="margin-top:14px">
+    <div class="modal-err" id="pinErr"></div>
+    <div class="modal-btns">
+      <button class="btn" id="pinCancel">Cancel</button>
+      <button class="btn primary" id="pinOpen">Open</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.13.0/firebase-database-compat.js"></script>
+<script>
+'use strict';
+
+// --- Firebase ---
+const firebaseConfig = {
+  apiKey: "AIzaSyAaBopbV-kYB8ut71W0SF_5G-VqUwt4-qc",
+  authDomain: "skymagic-timecode-toolkit.firebaseapp.com",
+  databaseURL: "https://skymagic-timecode-toolkit-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "skymagic-timecode-toolkit",
+  storageBucket: "skymagic-timecode-toolkit.firebasestorage.app",
+  messagingSenderId: "364666618978",
+  appId: "1:364666618978:web:948db12b1b1c520878bd3b"
+};
+let db = null, firebaseReady = false;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+  }
+} catch (e) { firebaseReady = false; }
+
+let currentProjectId = null;
+let projectIndex = { projects: [] };
+let presenceList = [];
+let serverOffset = 0;          // ms: this device's clock vs Firebase server time
+let connected = false;
+let projectRef = null, presenceRef = null, presenceMineRef = null;
+const SAVE_DEBOUNCE = 400;
+const TICK_MS = 100;
+
+const defaults = {
+  mode: 'manual',
+  calc: { firstLightTC: '0:02:15', formationTimer: 80, firstTransition: 20 },
+  arm: { armHold: 26 },
+  custom: [],
+  showGaps: true,
+  timer: { running: false, startEpoch: null, pausedElapsed: 0, completed: false, startedByDevice: null, startedByName: '' },
+  audio: false,
+  updatedAt: 0,
+  updatedBy: '',
+};
+
+let state = JSON.parse(JSON.stringify(defaults));
+let editing = null;
+let saveTimer = null;
+let lastSavedAt = 0;
+let lastCueId = null;
+let audioCtx = null;
+// Persistent per-device ID — survives reloads so a device keeps control
+// of a timer it started even after a refresh.
+const deviceId = (function () {
+  try {
+    let id = localStorage.getItem('skymagic:deviceId');
+    if (!id) {
+      id = 'd' + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('skymagic:deviceId', id);
+    }
+    return id;
+  } catch (e) {
+    return 'd' + Math.random().toString(36).slice(2, 10);
+  }
+})();
+
+// --- Time helpers ---
+function parseTC(tc) {
+  if (tc == null || tc === '') return null;
+  if (typeof tc === 'number') return tc;
+  let str = String(tc).trim();
+  if (!str) return null;
+  const negative = str.startsWith('-');
+  if (negative) str = str.slice(1);
+  const parts = str.split(':').map(p => parseInt(p, 10));
+  if (parts.some(isNaN)) return null;
+  let h=0, m=0, s=0;
+  if (parts.length === 2) [m, s] = parts;
+  else if (parts.length === 3) [h, m, s] = parts;
+  else if (parts.length === 1) s = parts[0];
+  const result = h*3600 + m*60 + s;
+  return negative ? -result : result;
+}
+function fmtTC(sec) {
+  if (sec == null || isNaN(sec)) sec = 0;
+  const negative = sec < 0;
+  sec = Math.abs(Math.floor(sec));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return `${negative ? '-' : ''}${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function fmtDur(sec) {
+  if (sec == null || isNaN(sec)) return '—';
+  const sign = sec < 0 ? '-' : '';
+  sec = Math.abs(Math.ceil(sec));
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${sign}${m}:${String(s).padStart(2,'0')}`;
+}
+function fmtClockParts(sec) {
+  if (sec == null || isNaN(sec)) sec = 0;
+  const negative = sec < 0;
+  const abs = Math.abs(sec);
+  const whole = Math.floor(abs);
+  const ms = Math.floor((abs - whole) * 1000);
+  const h = Math.floor(whole / 3600);
+  const m = Math.floor((whole % 3600) / 60);
+  const s = whole % 60;
+  return {
+    main: `${negative ? '-' : ''}${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`,
+    ms: '.' + String(ms).padStart(3, '0'),
+  };
+}
+function cryptoId() { return Math.random().toString(36).slice(2, 10); }
+
+// --- Calculate ---
+function compute() {
+  const C = state.calc;
+  const formationTimer = +C.formationTimer || 0;
+  const firstTransition = +C.firstTransition || 0;
+  const A = state.arm;
+  const ARM_COUNTDOWN = 5, GCS_COUNTDOWN = 5;
+  const armDuration = +A.armHold || 0;
+  let tArm = null, tArmed = null, tGO = null, tTakeoff, tStartOfShow, tFirstLight;
+
+  if (state.mode === 'timecode') {
+    // Timecode Device: First Light TC is fixed by the event — calculate backward.
+    const firstLightTC = parseTC(C.firstLightTC);
+    if (firstLightTC == null) return null;
+    tFirstLight = firstLightTC;
+    tStartOfShow = tFirstLight - firstTransition;
+    tTakeoff = tStartOfShow - formationTimer;
+    tGO = tTakeoff - GCS_COUNTDOWN;
+    tArm = tGO - armDuration;
+    tArmed = tGO - ARM_COUNTDOWN;
+  } else {
+    // Manual Trigger: anchor Arm the Drones at 0:00:00 — calculate forward.
+    tArm = 0;
+    tGO = tArm + armDuration;
+    tArmed = tGO - ARM_COUNTDOWN;
+    tTakeoff = tGO + GCS_COUNTDOWN;
+    tStartOfShow = tTakeoff + formationTimer;
+    tFirstLight = tStartOfShow + firstTransition;
+  }
+  return {
+    tFirstLight, tStartOfShow, tTakeoff,
+    tArm, tArmed, tGO,
+    gcs: GCS_COUNTDOWN,
+  };
+}
+
+function customAnchorTime(L, anchor) {
+  switch (anchor) {
+    case 'arm': return L.tArm;
+    case 'go': return L.tGO;
+    case 'sos': return L.tStartOfShow;
+    case 'firstLight': return L.tFirstLight;
+    case 'takeoff':
+    default: return L.tTakeoff;
+  }
+}
+
+function buildTimeline() {
+  const cues = [];
+  let id = 0;
+  const add = c => cues.push(Object.assign({ id: ++id }, c));
+  const L = compute();
+  if (L) {
+    if (L.tArm != null) {
+      add({ name: 'Arm the Drones', t: L.tArm, phase: 'pre', main: true });
+      add({ name: 'GO', t: L.tGO, phase: 'gcs', main: true });
+      for (let i = 1; i < L.gcs; i++) add({ name: 'GCS ' + (L.gcs - i), t: L.tGO + i, phase: 'gcs', isBeat: true });
+    }
+    add({ name: 'Drones Takeoff', t: L.tTakeoff, phase: 'flight', main: true });
+    add({ name: 'Start of Show', t: L.tStartOfShow, phase: 'show', main: true });
+    add({ name: 'First Light', t: L.tFirstLight, phase: 'show', main: true });
+    state.custom.forEach(c => {
+      if (!c.name) return;
+      const anchorT = customAnchorTime(L, c.anchor);
+      if (anchorT == null) return;
+      const off = +c.offset || 0;
+      const t = anchorT + (c.dir === 'after' ? off : -off);
+      add({ name: c.name, t, phase: 'show', main: true });
+    });
+  }
+  cues.sort((a, b) => a.t - b.t);
+  // Manual Trigger: the show clock always starts at 0:00:00, so shift the
+  // whole timeline up until the earliest cue (e.g. a pre-roll) lands on zero.
+  // Timecode Device keeps absolute event timecodes, so it is left untouched.
+  if (state.mode !== 'timecode' && cues.length && cues[0].t !== 0) {
+    const shift = cues[0].t;
+    cues.forEach(c => { c.t -= shift; });
+  }
+  return cues;
+}
+
+function cueColor(cue) {
+  if (cue.name === 'First Light') return 'var(--caller)';
+  switch (cue.phase) {
+    case 'pre': return 'var(--red)';
+    case 'gcs': return 'var(--yellow)';
+    case 'flight': return 'var(--green)';
+    case 'show': return 'var(--blue)';
+    default: return 'var(--muted)';
+  }
+}
+
+// --- Timer ---
+function getStartBase() {
+  const cues = buildTimeline().filter(c => c.main);
+  // Timer begins at the first cue (Arm the Drones) so pressing Start drops
+  // straight into the launch sequence — no dead wait counting up to it.
+  return cues.length ? cues[0].t : 0;
+}
+function serverNow() { return Date.now() + serverOffset; }
+function getElapsed() {
+  const t = state.timer;
+  const base = getStartBase();
+  if (!t.startEpoch && !t.pausedElapsed) return base;
+  if (t.running) {
+    // Prefer startEpochLocal — every browser uses Date.now() as the time base,
+    // so two tabs on the same PC agree exactly and NTP-synced devices agree
+    // within ~10ms. This avoids inter-browser drift caused by each device
+    // measuring its own serverOffset against Firebase.
+    if (t.startEpochLocal) {
+      return base + (Date.now() - t.startEpochLocal + t.pausedElapsed) / 1000;
+    }
+    return base + (serverNow() - t.startEpoch + t.pausedElapsed) / 1000;
+  }
+  return base + t.pausedElapsed / 1000;
+}
+function myName() {
+  const el = document.getElementById('userName');
+  return (el && el.value.trim()) || 'Anonymous';
+}
+// During a live show, only the device that started the timer may pause,
+// resume or reset it. Returns true if this device is allowed to control it.
+function iControlTimer() {
+  return !state.timer.startedByDevice || state.timer.startedByDevice === deviceId;
+}
+
+function startTimer() {
+  state.timer.startEpoch = serverNow();
+  state.timer.startEpochLocal = Date.now();
+  state.timer.running = true;
+  state.timer.completed = false;
+  if (!state.timer.startedByDevice) {
+    state.timer.startedByDevice = deviceId;
+    state.timer.startedByName = myName();
+  }
+  saveNow(); ensureAudio();
+}
+function pauseTimer() {
+  if (!state.timer.running) return;
+  // Match the time base used in getElapsed — startEpochLocal-based delta when
+  // available, fall back to serverNow-based for backward compat.
+  if (state.timer.startEpochLocal) {
+    state.timer.pausedElapsed += Date.now() - state.timer.startEpochLocal;
+  } else {
+    state.timer.pausedElapsed += serverNow() - state.timer.startEpoch;
+  }
+  state.timer.running = false;
+  state.timer.startEpoch = null;
+  state.timer.startEpochLocal = null;
+  saveNow();
+}
+function resetTimer() {
+  state.timer.running = false;
+  state.timer.startEpoch = null;
+  state.timer.startEpochLocal = null;
+  state.timer.pausedElapsed = 0;
+  state.timer.completed = false;
+  state.timer.startedByDevice = null;
+  state.timer.startedByName = '';
+  lastCueId = null;
+  saveNow();
+}
+function completeAtFirstLight(firstLightTC) {
+  const base = getStartBase();
+  state.timer.running = false;
+  state.timer.startEpoch = null;
+  state.timer.startEpochLocal = null;
+  state.timer.pausedElapsed = (firstLightTC - base) * 1000;
+  state.timer.completed = true;
+  saveNow();
+  if (state.audio) { beep(1046, 180); setTimeout(() => beep(1568, 380), 200); }
+  render();
+}
+
+// --- Audio ---
+function ensureAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep(freq = 700, duration = 80, vol = 0.18) {
+  if (!state.audio || !audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration/1000);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration/1000 + 0.02);
+  } catch(e){}
+}
+
+// --- Render static inputs ---
+function applyMode() {
+  const m = state.mode === 'timecode' ? 'timecode' : 'manual';
+  document.getElementById('modeManual').classList.toggle('active', m === 'manual');
+  document.getElementById('modeTimecode').classList.toggle('active', m === 'timecode');
+  document.getElementById('callerTimecode').style.display = m === 'timecode' ? '' : 'none';
+  document.getElementById('callerManual').style.display = m === 'manual' ? '' : 'none';
+  document.getElementById('modeHint').textContent = m === 'timecode'
+    ? 'The event sets the exact timecode first light must hit. The toolkit calculates backward to when you arm, GO and take off.'
+    : 'You call the show. Press Arm the Drones when ready — the toolkit counts the launch sequence forward from zero.';
+  if (m === 'manual') {
+    const L = compute();
+    document.getElementById('manualFL').textContent = L ? fmtTC(L.tFirstLight) : '—';
+  }
+}
+
+// Once the timer has been started, freeze every setup input on all devices
+// so the timeline can't shift mid-show. Cleared when the timer is reset.
+function applyLockState() {
+  const live = !!state.timer.startedByDevice;
+  ['c_firstLight', 'p_formationTimer', 'p_firstTransition', 'a_armHold',
+   'modeManual', 'modeTimecode', 'addCustom'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = live;
+  });
+  document.querySelectorAll('#customList input, #customList select, #customList button')
+    .forEach(el => { el.disabled = live; });
+  const note = document.getElementById('setupLock');
+  if (note) note.style.display = live ? 'flex' : 'none';
+}
+
+function render() {
+  const proj = projectIndex.projects.find(p => p.id === currentProjectId);
+  setVal('showName', proj ? proj.name : '');
+  const pinEl = document.getElementById('projPinShow');
+  if (pinEl) pinEl.textContent = proj ? proj.pin : '····';
+  setVal('c_firstLight', state.calc.firstLightTC);
+  setVal('p_formationTimer', state.calc.formationTimer);
+  setVal('p_firstTransition', state.calc.firstTransition);
+  setVal('a_armHold', state.arm.armHold);
+  document.getElementById('showGaps').checked = state.showGaps !== false;
+
+  const audioBtn = document.getElementById('btnAudio');
+  audioBtn.textContent = state.audio ? '🔊' : '🔇';
+  audioBtn.classList.toggle('active', state.audio);
+
+  document.getElementById('customCount').textContent = state.custom.length;
+  renderCustom();
+  applyMode();
+  applyLockState();
+}
+
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el && el !== document.activeElement) el.value = val == null ? '' : val;
+}
+
+function renderCustom() {
+  const el = document.getElementById('customList');
+  el.innerHTML = '';
+  const anchors = [
+    ['arm', 'Arm the Drones'], ['go', 'GO'], ['takeoff', 'Drones Takeoff'],
+    ['sos', 'Start of Show'], ['firstLight', 'First Light'],
+  ];
+  state.custom.forEach(cue => {
+    const dir = cue.dir === 'after' ? 'after' : 'before';
+    const anchor = cue.anchor || 'takeoff';
+    const offset = cue.offset == null ? '' : cue.offset;
+    const anchorOpts = anchors.map(([v, label]) =>
+      `<option value="${v}"${v === anchor ? ' selected' : ''}>${label}</option>`).join('');
+    const row = document.createElement('div');
+    row.className = 'custom-row';
+    row.innerHTML = `
+      <div class="cc-line1">
+        <input data-cid="${cue.id}" data-cfield="name" value="${escapeHtml(cue.name)}" placeholder="Cue name">
+        <button class="row-delete" data-cdel="${cue.id}">×</button>
+      </div>
+      <div class="cc-line2">
+        <input class="cc-offset" type="number" min="0" inputmode="numeric" data-cid="${cue.id}" data-cfield="offset" value="${escapeHtml(String(offset))}" placeholder="0">
+        <span class="cc-unit">sec</span>
+        <select class="cc-sel" data-cid="${cue.id}" data-cfield="dir">
+          <option value="before"${dir === 'before' ? ' selected' : ''}>before</option>
+          <option value="after"${dir === 'after' ? ' selected' : ''}>after</option>
+        </select>
+        <select class="cc-sel" data-cid="${cue.id}" data-cfield="anchor">${anchorOpts}</select>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+  if (editing && editing.cid) {
+    const focus = document.querySelector(`[data-cid="${editing.cid}"][data-cfield="${editing.cfield}"]`);
+    if (focus) {
+      focus.focus();
+      try { if (editing.selStart != null && focus.setSelectionRange) focus.setSelectionRange(editing.selStart, editing.selEnd); } catch(e){}
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// --- Live tick ---
+function tick() {
+  if (!currentProjectId) return;
+  const allCues = buildTimeline();
+  const mainCues = allCues.filter(c => c.main);
+  const elapsed = getElapsed();
+  const isActive = state.timer.running || state.timer.pausedElapsed > 0;
+  const completed = state.timer.completed;
+
+  let curAllIdx = -1;
+  for (let i = 0; i < allCues.length; i++) {
+    if (allCues[i].t <= elapsed) curAllIdx = i; else break;
+  }
+  const curAll = curAllIdx >= 0 ? allCues[curAllIdx] : null;
+
+  let curMainIdx = -1;
+  for (let i = 0; i < mainCues.length; i++) {
+    if (mainCues[i].t <= elapsed) curMainIdx = i; else break;
+  }
+
+  const phase = completed ? 'complete'
+    : (curAll && isActive ? curAll.phase : (isActive ? 'preroll' : 'idle'));
+  document.getElementById('timelineCard').className = 'timeline-card phase-' + phase;
+
+  const phaseLabels = {
+    idle: 'Ready', preroll: 'Standby', pre: 'Pre-Flight',
+    gcs: 'GCS Countdown',
+    flight: 'In Flight', show: 'Show Live', complete: '★ First Light',
+  };
+  document.getElementById('phaseBig').textContent = (phaseLabels[phase] || phase).toUpperCase();
+  document.getElementById('timerCaption').textContent =
+    completed ? 'complete' : state.timer.running ? 'running'
+    : isActive ? 'paused' : 'show clock';
+
+  // Say Now — the current cue / countdown beat
+  const sayEl = document.getElementById('sayNow');
+  if (completed) sayEl.textContent = 'FIRST LIGHT';
+  else if (curAll && isActive) sayEl.textContent = curAll.name;
+  else if (isActive) sayEl.textContent = 'Stand by…';
+  else sayEl.textContent = '—';
+
+  // Standby — the next milestone with a countdown
+  const sbEl = document.getElementById('standby');
+  let nextMain = null;
+  for (let i = 0; i < mainCues.length; i++) {
+    if (mainCues[i].t > elapsed) { nextMain = mainCues[i]; break; }
+  }
+  if (completed) {
+    sbEl.innerHTML = '<span class="sb-name">— show is live —</span>';
+    sbEl.className = 'standby';
+  } else if (!isActive) {
+    sbEl.innerHTML = mainCues.length
+      ? `<span class="sb-name">${escapeHtml(mainCues[0].name)}</span>`
+      : '<span class="sb-name">—</span>';
+    sbEl.className = 'standby';
+  } else if (nextMain) {
+    const dt = nextMain.t - elapsed;
+    sbEl.innerHTML = `<span class="sb-name">${escapeHtml(nextMain.name)}</span><br><span class="sb-time">in ${fmtDur(dt)}</span>`;
+    sbEl.className = 'standby' + (dt <= 5 ? ' imminent' : '');
+  } else {
+    sbEl.innerHTML = '<span class="sb-name">— end of timeline —</span>';
+    sbEl.className = 'standby';
+  }
+
+  // audio cue on change
+  if (curAll && curAll.id !== lastCueId && state.timer.running) {
+    if (lastCueId !== null) beep(curAll.isBeat ? 500 : 900, curAll.isBeat ? 80 : 150);
+    lastCueId = curAll.id;
+  }
+  if (!curAll) lastCueId = null;
+
+  renderComingUp(mainCues, curMainIdx, elapsed, isActive);
+  updateStartButton(mainCues);
+  updateSyncDisplay();
+  updateClockWarn();
+}
+
+function fmtGap(sec) {
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return sec + 's';
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return s ? m + 'm ' + s + 's' : m + 'm';
+}
+
+function renderComingUp(mainCues, curMainIdx, elapsed, isActive) {
+  const el = document.getElementById('comingUp');
+  if (!mainCues.length) {
+    el.innerHTML = '<div class="cu-empty">Enter First Light TC above</div>';
+    return;
+  }
+  const startIdx = isActive ? Math.max(0, curMainIdx) : 0;
+  let html = '';
+  for (let i = startIdx; i < mainCues.length; i++) {
+    const cue = mainCues[i];
+    const isCurrent = isActive && i === curMainIdx;
+    // Always show absolute timecodes so the column stays consistent;
+    // the live countdown to the next cue lives in the Standby panel.
+    const right = fmtTC(cue.t);
+    html += `<div class="cu-item${isCurrent ? ' current' : ''}">`
+      + `<span class="cu-dot" style="background:${cueColor(cue)}"></span>`
+      + `<span class="cu-name">${escapeHtml(cue.name)}</span>`
+      + `<span class="cu-tc">${right}</span></div>`;
+    // Duration to the next phase, so the caller sees how long each segment runs.
+    if (state.showGaps !== false && i < mainCues.length - 1) {
+      const gap = mainCues[i + 1].t - cue.t;
+      html += `<div class="cu-gap"><span class="cu-gap-line"></span><span>${fmtGap(gap)}</span></div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function updateStartButton(mainCues) {
+  const startBtn = document.getElementById('btnStart');
+  if (state.timer.completed) {
+    startBtn.textContent = '✓ FIRST LIGHT';
+    startBtn.classList.remove('primary');
+    startBtn.disabled = true;
+  } else if (state.timer.running) {
+    startBtn.textContent = '⏸ PAUSE';
+    startBtn.classList.remove('primary');
+    startBtn.disabled = false;
+  } else if (state.timer.pausedElapsed > 0) {
+    startBtn.textContent = '▶ RESUME';
+    startBtn.classList.add('primary');
+    startBtn.disabled = false;
+  } else {
+    const firstName = mainCues && mainCues.length ? mainCues[0].name : 'Start';
+    startBtn.textContent = '▶ ' + firstName.toUpperCase();
+    startBtn.classList.add('primary');
+    startBtn.disabled = false;
+  }
+
+  // Live-show lock: if another device started this timer, this device
+  // cannot pause, resume or reset it until that device resets.
+  const locked = !iControlTimer();
+  if (locked) startBtn.disabled = true;
+  document.getElementById('btnReset').disabled = locked;
+  const bar = document.getElementById('timerLock');
+  if (locked) {
+    bar.style.display = 'flex';
+    document.getElementById('timerLockMsg').textContent =
+      '🔒 ' + (state.timer.startedByName || 'Another device') + ' is running this timer';
+  } else {
+    bar.style.display = 'none';
+    if (takeoverArmed) {
+      takeoverArmed = false;
+      clearTimeout(takeoverTO);
+      const tb = document.getElementById('btnTakeover');
+      tb.textContent = 'Take over'; tb.classList.remove('armed');
+    }
+  }
+}
+
+// --- Firebase: project state sync ---
+function applyState(parsed) {
+  if (!parsed) return;
+  // ignore an echo older than our own most recent local save
+  if (parsed.updatedAt && parsed.updatedAt < lastSavedAt) return;
+  state = Object.assign({}, defaults, parsed);
+  state.calc = Object.assign({}, defaults.calc, parsed.calc || {});
+  state.arm = Object.assign({}, defaults.arm, parsed.arm || {});
+  state.timer = Object.assign({}, defaults.timer, parsed.timer || {});
+  state.custom = parsed.custom || [];
+  render(); tick();
+}
+function saveState() {
+  if (!currentProjectId || !projectRef) return;
+  state.updatedAt = Date.now();
+  state.updatedBy = document.getElementById('userName').value.trim() || 'Anonymous';
+  state.updatedByDevice = deviceId;
+  lastSavedAt = state.updatedAt;
+  try { projectRef.set(state).catch(function () {}); } catch (e) {}
+}
+function queueSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveState, SAVE_DEBOUNCE); }
+function saveNow() { clearTimeout(saveTimer); saveState(); }
+
+function updateSyncDisplay() {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  if (!dot || !txt) return;
+  if (connected) {
+    dot.className = 'dot';
+    txt.textContent = 'Synced';
+  } else {
+    dot.className = 'dot error';
+    txt.textContent = 'Offline';
+  }
+}
+function updateClockWarn() {
+  const el = document.getElementById('clockWarn');
+  if (!el) return;
+  // The timer is corrected to Firebase server time, so device clock skew
+  // no longer breaks sync — but a wildly wrong clock is still worth flagging.
+  if (Math.abs(serverOffset) >= 30000) {
+    const sec = Math.round(Math.abs(serverOffset) / 1000);
+    el.textContent = '⚠ This device’s clock is about ' + sec + 's off real time. '
+      + 'The show timer is auto-corrected so sync still works, but turning on '
+      + 'automatic Date & Time is recommended.';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// --- Bind inputs ---
+function bindVar(id, path) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', e => {
+    const v = e.target.type === 'number' ? (parseFloat(e.target.value) || 0) : e.target.value;
+    const parts = path.split('.');
+    let o = state;
+    for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+    o[parts[parts.length - 1]] = v;
+    editing = { id, selStart: e.target.selectionStart, selEnd: e.target.selectionEnd };
+    queueSave();
+    tick();
+  });
+  el.addEventListener('blur', () => { editing = null; });
+}
+// Show name lives in the project index (the directory), not per-show state.
+let indexSaveTimer = null;
+document.getElementById('showName').addEventListener('input', e => {
+  const proj = projectIndex.projects.find(p => p.id === currentProjectId);
+  if (!proj) return;
+  proj.name = e.target.value;
+  clearTimeout(indexSaveTimer);
+  indexSaveTimer = setTimeout(() => {
+    if (firebaseReady && currentProjectId) {
+      try { db.ref('projects_index/' + currentProjectId + '/name').set(proj.name).catch(function () {}); } catch (e) {}
+    }
+  }, 600);
+});
+bindVar('c_firstLight', 'calc.firstLightTC');
+bindVar('p_formationTimer', 'calc.formationTimer');
+bindVar('p_firstTransition', 'calc.firstTransition');
+bindVar('a_armHold', 'arm.armHold');
+
+document.getElementById('showGaps').addEventListener('change', e => {
+  state.showGaps = e.target.checked;
+  queueSave(); tick();
+});
+
+// --- Mode selector ---
+document.querySelectorAll('.modesel-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.mode === btn.dataset.mode) return;
+    state.mode = btn.dataset.mode;
+    render(); tick(); queueSave();
+  });
+});
+
+// --- Custom cues ---
+document.getElementById('addCustom').addEventListener('click', () => {
+  state.custom.push({ id: cryptoId(), name: '', offset: 30, dir: 'before', anchor: 'takeoff' });
+  renderCustom();
+  document.getElementById('customCount').textContent = state.custom.length;
+  queueSave(); tick();
+});
+function onCustomEdit(e) {
+  const cid = e.target.dataset.cid;
+  const cfield = e.target.dataset.cfield;
+  if (!cid || !cfield) return;
+  const cue = state.custom.find(c => c.id === cid);
+  if (!cue) return;
+  cue[cfield] = e.target.value;
+  editing = { cid, cfield, selStart: e.target.selectionStart, selEnd: e.target.selectionEnd };
+  queueSave(); tick();
+}
+document.getElementById('customList').addEventListener('input', onCustomEdit);
+document.getElementById('customList').addEventListener('change', onCustomEdit);
+document.getElementById('customList').addEventListener('click', e => {
+  const cid = e.target.dataset && e.target.dataset.cdel;
+  if (!cid) return;
+  state.custom = state.custom.filter(c => c.id !== cid);
+  renderCustom();
+  document.getElementById('customCount').textContent = state.custom.length;
+  queueSave(); tick();
+});
+
+// --- Timer controls ---
+let takeoverArmed = false, takeoverTO = null;
+document.getElementById('btnStart').addEventListener('click', () => {
+  if (!iControlTimer()) return;
+  if (state.timer.running) pauseTimer(); else startTimer();
+  render(); tick();
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (!iControlTimer()) return;
+  resetTimer(); render(); tick();
+});
+document.getElementById('btnTakeover').addEventListener('click', () => {
+  const btn = document.getElementById('btnTakeover');
+  if (!takeoverArmed) {
+    takeoverArmed = true;
+    btn.textContent = 'Tap again to confirm';
+    btn.classList.add('armed');
+    takeoverTO = setTimeout(() => {
+      takeoverArmed = false;
+      btn.textContent = 'Take over';
+      btn.classList.remove('armed');
+    }, 3500);
+    return;
+  }
+  clearTimeout(takeoverTO);
+  takeoverArmed = false;
+  btn.textContent = 'Take over';
+  btn.classList.remove('armed');
+  state.timer.startedByDevice = deviceId;
+  state.timer.startedByName = myName();
+  saveNow(); render(); tick();
+});
+document.getElementById('btnAudio').addEventListener('click', () => {
+  state.audio = !state.audio;
+  if (state.audio) ensureAudio();
+  queueSave(); render();
+});
+
+document.getElementById('modeToggle').addEventListener('click', () => {
+  const on = document.body.classList.toggle('show-mode');
+  document.getElementById('modeToggle').textContent =
+    on ? 'Show setup' : 'Hide setup — show timer only';
+});
+
+let resetAllArmed = false, resetAllTO = null;
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  const btn = document.getElementById('resetAllBtn');
+  if (!resetAllArmed) {
+    resetAllArmed = true;
+    btn.textContent = 'Tap again to confirm';
+    resetAllTO = setTimeout(() => {
+      resetAllArmed = false;
+      btn.textContent = 'Reset show values';
+    }, 3000);
+    return;
+  }
+  clearTimeout(resetAllTO);
+  resetAllArmed = false;
+  btn.textContent = 'Reset show values';
+  state = JSON.parse(JSON.stringify(defaults));
+  render(); tick(); queueSave();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const proj = projectIndex.projects.find(p => p.id === currentProjectId) || {};
+  const out = {
+    show: proj.name || '', calc: state.calc, arm: state.arm,
+    custom: state.custom,
+    timeline: buildTimeline().filter(c => c.main).map(c => ({ name: c.name, tc: fmtTC(c.t) })),
+  };
+  const json = JSON.stringify(out, null, 2);
+  const btn = document.getElementById('exportBtn');
+  const done = msg => { btn.textContent = msg; setTimeout(() => { btn.textContent = 'Copy JSON'; }, 1600); };
+  try {
+    navigator.clipboard.writeText(json).then(() => done('Copied ✓')).catch(() => done('Copy failed'));
+  } catch (e) { done('Copy failed'); }
+});
+
+// --- Fast clock loop (milliseconds) ---
+function clockLoop() {
+  if (currentProjectId) {
+    let elapsed = getElapsed();
+    const L = compute();
+    if (L && state.timer.running && elapsed >= L.tFirstLight) {
+      completeAtFirstLight(L.tFirstLight);
+      elapsed = L.tFirstLight;
+    }
+    const isActive = state.timer.running || state.timer.pausedElapsed > 0;
+    const p = fmtClockParts(elapsed);
+    const main = document.getElementById('clockMain');
+    const msEl = document.getElementById('clockMs');
+    const clock = document.getElementById('elapsedDisplay');
+    if (main) main.textContent = p.main;
+    if (msEl) msEl.textContent = p.ms;
+    if (clock) clock.classList.toggle('idle', !isActive);
+  }
+  requestAnimationFrame(clockLoop);
+}
+
+// --- Firebase: project index (the directory) ---
+function indexSnapshotToList(val) {
+  const list = [];
+  if (val && typeof val === 'object') {
+    for (const id in val) {
+      const p = val[id];
+      if (p && typeof p === 'object') {
+        list.push({
+          id: id, name: p.name || 'Untitled',
+          pin: String(p.pin == null ? '' : p.pin), createdAt: p.createdAt || 0,
+        });
+      }
+    }
+  }
+  list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  return list;
+}
+let autoRejoinChecked = false;
+function startIndexListener() {
+  if (!firebaseReady) return;
+  db.ref('projects_index').on('value', snap => {
+    projectIndex.projects = indexSnapshotToList(snap.val());
+    if (!currentProjectId) renderProjectList();
+    // On first load, drop back into the last show this device was in.
+    if (!autoRejoinChecked) {
+      autoRejoinChecked = true;
+      tryAutoRejoin();
+    }
+  }, () => {});
+}
+function tryAutoRejoin() {
+  let saved = null;
+  try { saved = localStorage.getItem('skymagic:lastProject'); } catch (e) {}
+  if (!saved) return;
+  const proj = projectIndex.projects.find(p => p.id === saved);
+  if (proj) {
+    enterProject(saved);
+  } else {
+    try { localStorage.removeItem('skymagic:lastProject'); } catch (e) {}
+  }
+}
+function fmtDate(ms) {
+  try { return new Date(ms).toLocaleDateString(); } catch (e) { return ''; }
+}
+function renderProjectList() {
+  const el = document.getElementById('projectList');
+  if (!el) return;
+  if (!projectIndex.projects.length) {
+    el.innerHTML = '<div class="proj-empty">No shows yet.<br>Tap “+ New Show” to create one.</div>';
+    return;
+  }
+  el.innerHTML = projectIndex.projects.map(p =>
+    '<button class="proj-row" data-pid="' + p.id + '">'
+    + '<span class="proj-lock">🔒</span>'
+    + '<span class="proj-info"><span class="proj-name">' + escapeHtml(p.name) + '</span>'
+    + '<span class="proj-meta">PIN-protected'
+    + (p.createdAt ? ' · ' + fmtDate(p.createdAt) : '') + '</span></span>'
+    + '<span class="proj-go">›</span></button>'
+  ).join('');
+}
+
+// --- Firebase: presence (who's in this show) ---
+// onDisconnect() removes a device server-side the moment its connection drops.
+function startPresence(pid) {
+  if (!firebaseReady) return;
+  presenceMineRef = db.ref('presence/' + pid + '/' + deviceId);
+  const name = document.getElementById('userName').value.trim() || 'Anonymous';
+  presenceMineRef.onDisconnect().remove();
+  presenceMineRef.set({
+    name: name, deviceId: deviceId,
+    lastSeen: firebase.database.ServerValue.TIMESTAMP,
+  }).catch(function () {});
+  presenceRef = db.ref('presence/' + pid);
+  presenceRef.on('value', snap => {
+    const here = [];
+    const val = snap.val();
+    if (val && typeof val === 'object') {
+      for (const did in val) {
+        const e = val[did];
+        if (e && e.name != null) here.push({ name: e.name, deviceId: e.deviceId || did });
+      }
+    }
+    here.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    presenceList = here;
+    renderPresence();
+  }, () => {});
+}
+function presenceBeat() {
+  if (!presenceMineRef) return;
+  const name = document.getElementById('userName').value.trim() || 'Anonymous';
+  try {
+    presenceMineRef.update({
+      name: name, lastSeen: firebase.database.ServerValue.TIMESTAMP,
+    }).catch(function () {});
+  } catch (e) {}
+}
+function stopPresence() {
+  if (presenceRef) { try { presenceRef.off(); } catch (e) {} presenceRef = null; }
+  if (presenceMineRef) {
+    try { presenceMineRef.onDisconnect().cancel(); } catch (e) {}
+    try { presenceMineRef.remove().catch(function () {}); } catch (e) {}
+    presenceMineRef = null;
+  }
+  presenceList = [];
+}
+function renderPresence() {
+  const el = document.getElementById('presenceBar');
+  if (!el) return;
+  const list = presenceList;
+  if (!list.length) { el.innerHTML = '<span class="pres-dot dim"></span> Connecting…'; return; }
+  const others = list.filter(p => p.deviceId !== deviceId);
+  if (others.length === 0) {
+    el.innerHTML = '<span class="pres-dot"></span> <b>Just you</b> on this show right now';
+  } else {
+    const names = list.map(p =>
+      escapeHtml(p.name) + (p.deviceId === deviceId ? ' (you)' : '')).join(', ');
+    el.innerHTML = '<span class="pres-dot"></span> <b>' + list.length + ' here</b> — ' + names;
+  }
+}
+
+// --- Projects: navigation ---
+function showScreen(which) {
+  document.getElementById('screenHome').style.display = which === 'home' ? '' : 'none';
+  document.getElementById('screenShow').style.display = which === 'show' ? '' : 'none';
+}
+function enterProject(id) {
+  const proj = projectIndex.projects.find(p => p.id === id);
+  if (!proj) return;
+  currentProjectId = id;
+  try { localStorage.setItem('skymagic:lastProject', id); } catch (e) {}
+  state = JSON.parse(JSON.stringify(defaults));
+  lastSavedAt = 0; lastCueId = null;
+  showScreen('show');
+  render();
+  if (firebaseReady) {
+    projectRef = db.ref('projects/' + id);
+    projectRef.on('value', snap => { applyState(snap.val()); }, () => {});
+    startPresence(id);
+  }
+  render(); tick();
+}
+function goHome() {
+  if (projectRef) { try { projectRef.off(); } catch (e) {} projectRef = null; }
+  stopPresence();
+  currentProjectId = null;
+  try { localStorage.removeItem('skymagic:lastProject'); } catch (e) {}
+  document.body.classList.remove('show-mode');
+  document.getElementById('modeToggle').textContent = 'Hide setup — show timer only';
+  showScreen('home');
+  renderProjectList();
+}
+function createProject(name, pin) {
+  if (!firebaseReady) return;
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const seed = JSON.parse(JSON.stringify(defaults));
+  seed.updatedAt = Date.now();
+  seed.updatedByDevice = deviceId;
+  db.ref('projects/' + id).set(seed).catch(function () {});
+  db.ref('projects_index/' + id).set({ name: name, pin: pin, createdAt: Date.now() }).catch(function () {});
+  // optimistic local add so we can open it immediately
+  if (!projectIndex.projects.find(p => p.id === id)) {
+    projectIndex.projects.push({ id: id, name: name, pin: pin, createdAt: Date.now() });
+  }
+  enterProject(id);
+}
+
+// --- Projects: home screen handlers ---
+document.getElementById('backHome').addEventListener('click', goHome);
+document.getElementById('projectList').addEventListener('click', e => {
+  const row = e.target.closest('.proj-row');
+  if (row) openPinModal(row.dataset.pid);
+});
+document.getElementById('newProjectBtn').addEventListener('click', () => {
+  document.getElementById('npName').value = '';
+  document.getElementById('npPin').value = '';
+  document.getElementById('npErr').textContent = '';
+  document.getElementById('modalNewProj').style.display = 'flex';
+  document.getElementById('npName').focus();
+});
+document.getElementById('npCancel').addEventListener('click', () => {
+  document.getElementById('modalNewProj').style.display = 'none';
+});
+document.getElementById('npCreate').addEventListener('click', async () => {
+  const name = document.getElementById('npName').value.trim();
+  const pin = document.getElementById('npPin').value.trim();
+  const err = document.getElementById('npErr');
+  if (!name) { err.textContent = 'Enter a show name.'; return; }
+  if (!/^\d{4}$/.test(pin)) { err.textContent = 'PIN must be exactly 4 digits.'; return; }
+  err.textContent = '';
+  document.getElementById('modalNewProj').style.display = 'none';
+  await createProject(name, pin);
+});
+document.getElementById('npPin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('npCreate').click();
+});
+
+// --- Projects: PIN modal ---
+let pinTargetId = null;
+function openPinModal(id) {
+  const proj = projectIndex.projects.find(p => p.id === id);
+  if (!proj) return;
+  pinTargetId = id;
+  document.getElementById('pinTitle').textContent = proj.name;
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinErr').textContent = '';
+  document.getElementById('modalPin').style.display = 'flex';
+  document.getElementById('pinInput').focus();
+}
+function tryPin() {
+  const proj = projectIndex.projects.find(p => p.id === pinTargetId);
+  if (!proj) { document.getElementById('modalPin').style.display = 'none'; return; }
+  const entered = document.getElementById('pinInput').value.trim();
+  if (entered === proj.pin) {
+    document.getElementById('modalPin').style.display = 'none';
+    const id = pinTargetId;
+    pinTargetId = null;
+    enterProject(id);
+  } else {
+    document.getElementById('pinErr').textContent = 'Wrong PIN. Try again.';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
+  }
+}
+document.getElementById('pinOpen').addEventListener('click', tryPin);
+document.getElementById('pinCancel').addEventListener('click', () => {
+  document.getElementById('modalPin').style.display = 'none';
+  pinTargetId = null;
+});
+document.getElementById('pinInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryPin();
+});
+['modalNewProj', 'modalPin'].forEach(mid => {
+  document.getElementById(mid).addEventListener('click', e => {
+    if (e.target.id === mid) {
+      e.target.style.display = 'none';
+      if (mid === 'modalPin') pinTargetId = null;
+    }
+  });
+});
+
+// --- Delete current show ---
+let delArmed = false, delTO = null;
+document.getElementById('deleteProjBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('deleteProjBtn');
+  if (!delArmed) {
+    delArmed = true;
+    btn.textContent = 'Tap again to permanently delete';
+    delTO = setTimeout(() => { delArmed = false; btn.textContent = 'Delete this show'; }, 3000);
+    return;
+  }
+  clearTimeout(delTO);
+  delArmed = false;
+  btn.textContent = 'Delete this show';
+  const id = currentProjectId;
+  if (firebaseReady && id) {
+    try { db.ref('projects_index/' + id).remove().catch(function () {}); } catch (e) {}
+    try { db.ref('projects/' + id).remove().catch(function () {}); } catch (e) {}
+    try { db.ref('presence/' + id).remove().catch(function () {}); } catch (e) {}
+  }
+  goHome();
+});
+
+// --- Init ---
+// Pressing Return/Enter dismisses the on-screen keyboard.
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') e.target.blur();
+});
+// Remember the user's name across page reloads.
+(function () {
+  const el = document.getElementById('userName');
+  try {
+    const saved = localStorage.getItem('skymagic:userName');
+    if (saved) el.value = saved;
+  } catch (e) {}
+  el.addEventListener('input', function () {
+    try { localStorage.setItem('skymagic:userName', el.value); } catch (e) {}
+  });
+  el.addEventListener('change', presenceBeat);
+})();
+function init() {
+  showScreen('home');
+  if (!firebaseReady) {
+    const el = document.getElementById('projectList');
+    if (el) el.innerHTML = '<div class="proj-empty">Couldn’t reach the database.<br>'
+      + 'Open this tool from its published web link (your GitHub Pages URL). '
+      + 'The in-app preview can’t connect to Firebase.</div>';
+    return;
+  }
+  startIndexListener();
+  db.ref('.info/connected').on('value', s => { connected = s.val() === true; });
+  db.ref('.info/serverTimeOffset').on('value', s => {
+    const v = s.val();
+    if (typeof v === 'number') serverOffset = v;
+  });
+  setInterval(tick, TICK_MS);                  // self-guards on currentProjectId
+  requestAnimationFrame(clockLoop);            // self-guards
+}
+init();
+</script>
+</body>
+</html>
